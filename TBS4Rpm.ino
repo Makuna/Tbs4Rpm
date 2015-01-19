@@ -17,39 +17,32 @@ enum SamplingState
 };
 
 
-const unsigned long SamplePeriodUs = 1000; // 1ms 
-const unsigned long ReportPeriodUs = 100000; // 100ms
-const unsigned long ZeroCalibratePeriodUs = 5000000; // 5s
-const unsigned long CalibratePeriodUs = 2000000; // 2s
-const unsigned long PongPeriodUs = 10000000; // 10s
+const uint32_t SamplePeriodUs = 1000; // 1ms 
+const uint32_t ReportPeriodUs = 100000; // 100ms
+const uint32_t ZeroCalibratePeriodUs = 5000000; // 5s
+const uint32_t CalibratePeriodUs = 2000000; // 2s
+const uint32_t PongPeriodUs = 10000000; // 10s
 
-const int CountOutputBuffer = 128;
+const uint8_t CountOutputBuffer = 128;
 
 const String Version = "<version=0.16>";
-const int LED_BUILTIN = 13;
-
-const float pi = 3.141592f;
-const float twoPi = pi * 2.0f;
-const float halfPi = pi * 0.5f;
-const float angleIncRpm = 1150.0f / 60.0f / SamplePeriodUs * twoPi;
+const uint8_t LedPin = 13;
 
 // variables
 String outputData = ""; // for streaming samples
 String inputCommand = "";
 char lastChar = ' ';
-unsigned long prevTime;
-unsigned long sampleTimeout = SamplePeriodUs;
-unsigned long reportTimeout = ReportPeriodUs;
-unsigned long calibrateTimeout = ZeroCalibratePeriodUs;
-unsigned long idlePongTimeout = PongPeriodUs;
+uint32_t prevTime;
+uint32_t sampleTimeout = SamplePeriodUs;
+uint32_t reportTimeout = ReportPeriodUs;
+uint32_t calibrateTimeout = ZeroCalibratePeriodUs;
+uint32_t idlePongTimeout = PongPeriodUs;
 bool idleBeat = true;
 
-int lastChannelReady = 0;
-volatile SamplingState samplingState = SS_Idle;
+uint8_t lastChannelReady = 0;
+SamplingState samplingState = SS_Idle;
 
-float angle;
-
-TbsShieldRpm tbs;
+TbsShieldRpm tbs(4); // four channels
 
 // report format: 
 // kPa-100;1;2,50,1005,912,805;678
@@ -67,18 +60,18 @@ TbsShieldRpm tbs;
 // 1;2,50,1005,912,805;678<etx>
 // 4;0,50,1005,912,805;1,50,1005,912,805;2,50,1005,912,805;3,50,1005,912,805;1678<etx>
 //
-void SendReport(int channelsReady)
+void SendReport(uint8_t channelsReady)
 {
-  int prevLength = outputData.length();
+  uint16_t prevLength = outputData.length();
   
   outputData += "$";
   outputData += channelsReady;
 
-  for (int channelIndex = 0; channelIndex < TbsShieldRpm::ChannelCount; ++channelIndex)
+  for (uint8_t channelIndex = 0; channelIndex < tbs.ChannelCount(); ++channelIndex)
   {
     if (tbs.SampleForCycleReady(channelIndex))
     {
-      int value;
+      int16_t value;
       outputData += ";";
       // channel id
       outputData += channelIndex; 
@@ -109,8 +102,8 @@ void SendReport(int channelsReady)
 
   {
     // calc checksum
-    int sum = 0;
-    int count = outputData.length();
+    uint16_t sum = 0;
+    uint16_t count = outputData.length();
     for (int index = prevLength; index < count; index++)
     {
       sum += outputData.charAt(index);
@@ -123,17 +116,12 @@ void SendReport(int channelsReady)
 
   // add ETX and CR LF
   outputData += "\x03\r\n"; // ETX 
-
-//  if (outputData.length() > CountOutputBuffer)
-//  {
-//    Serial.print(">");
-//  }
 }
 
 boolean ServiceReport()
 {
-  const int countService = 128;
-  int length = outputData.length();
+  const uint8_t countService = 128;
+  uint16_t length = outputData.length();
   boolean needsService = (length > 0);
   if (needsService)
   {
@@ -143,8 +131,6 @@ boolean ServiceReport()
     }
     Serial.print(outputData);
     outputData = "";
-//    Serial.print(outputData.substring(0, length));
-//    outputData = outputData.substring(length);
   }
   return needsService;
 }
@@ -157,14 +143,12 @@ void setup()
   bool stateLed = HIGH;
   while (!Serial) 
   {
-     digitalWrite(LED_BUILTIN, HIGH);
+     digitalWrite(LedPin, HIGH);
      delay(250);
-     digitalWrite(LED_BUILTIN, LOW);
+     digitalWrite(LedPin, LOW);
      delay(250);
      ; // wait for serial port to connect. Needed for Leonardo only
    }
-  // Serial.flush();
-  // Serial.println(Version);
   
   inputCommand.reserve(80);
   inputCommand = "";
@@ -180,14 +164,10 @@ void setup()
 
 void loop()
 {
-  unsigned long nowTime = micros();
-  unsigned long deltaTime = nowTime - prevTime;
+  uint32_t nowTime = micros();
+  uint32_t deltaTime = nowTime - prevTime;
   
-//  if (deltaTime > SamplePeriodUs)
-//  {
-//    Serial.print("#");
-//  }
-    
+   
   switch (samplingState)
   {
   case SS_Idle:
@@ -338,11 +318,11 @@ void loop()
 
 void WorkAroundSerialEvent()
 {
-  static boolean stateLed = HIGH;
+  static uint8_t stateLed = HIGH;
   
   while (Serial.available())
   {
-    digitalWrite(LED_BUILTIN, stateLed);
+    digitalWrite(LedPin, stateLed);
     stateLed != stateLed;
     
     char inputChar = (char)Serial.read();
