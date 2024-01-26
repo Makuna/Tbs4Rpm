@@ -1,4 +1,8 @@
+
 #include <TbsShieldRpm.h>
+
+// Define number of cylinders to work with
+#define nuberOfCylinders 2
 
 enum SamplingState
 {
@@ -42,7 +46,7 @@ bool idleBeat = true;
 uint8_t lastChannelReady = 0;
 SamplingState samplingState = SS_Idle;
 
-TbsShieldRpm tbs(4); // four channels
+TbsShieldRpm tbs(nuberOfCylinders);		// number of channels we have attached sensors for
 
 // report format: 
 // kPa-100;1;2,50,1005,912,805;678
